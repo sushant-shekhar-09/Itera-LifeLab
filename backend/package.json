@@ -1,0 +1,29 @@
+{
+  "name": "itera-lifelab-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Itera LifeLab - Habit Tracking & Life Experimentation",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "mysql2": "^3.11.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "bcrypt": "^5.1.1",
+    "express-session": "^1.18.0",
+    "express-validator": "^7.2.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/bcrypt": "^5.0.2",
+    "@types/express-session": "^1.18.0",
+    "@types/node": "^22.5.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4"
+  }
+}

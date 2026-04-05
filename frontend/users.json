@@ -1,0 +1,51 @@
+[
+  {
+    "id": 1,
+    "username": "sushant",
+    "first_name": null,
+    "last_name": null,
+    "login_count": 0
+  },
+  {
+    "id": 2,
+    "username": "testuser",
+    "first_name": null,
+    "last_name": null,
+    "login_count": 0
+  },
+  {
+    "id": 3,
+    "username": "newuser",
+    "first_name": null,
+    "last_name": null,
+    "login_count": 0
+  },
+  {
+    "id": 4,
+    "username": "_sushant.shekhar",
+    "first_name": null,
+    "last_name": null,
+    "login_count": 0
+  },
+  {
+    "id": 5,
+    "username": "_sushant.shekhar_09",
+    "first_name": null,
+    "last_name": null,
+    "login_count": 0
+  },
+  {
+    "id": 6,
+    "username": "Demo Explorer",
+    "first_name": null,
+    "last_name": null,
+    "login_count": 0
+  },
+  {
+    "id": 7,
+    "username": "_sushant.09",
+    "first_name": null,
+    "last_name": null,
+    "login_count": 0
+  }
+]

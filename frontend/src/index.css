@@ -1,0 +1,196 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource/nunito";
+@import "@fontsource-variable/inter";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: 'Nunito', var(--font-sans);
+    --font-sans: 'Nunito', 'Inter Variable', sans-serif;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --color-garden-green: #AFD198;
+    --color-garden-sage: #E8EFCF;
+    --color-garden-parchment: #ECCA9C;
+    --color-garden-wood: #DBA979;
+    --color-earth-dark: #534340;
+    --color-earth-mid: #BB9981;
+    --color-earth-soft: #C5D8A4;
+    --color-earth-cream: #F4FCD9;
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* ─── Light Theme: Nature / Ghibli Inspired ──────────── */
+:root {
+    --background: #F4FCD9;
+    --foreground: #534340;
+    --card: #ECCA9C;
+    --card-foreground: #534340;
+    --popover: #ECCA9C;
+    --popover-foreground: #534340;
+    --primary: #AFD198;
+    --primary-foreground: #534340;
+    --secondary: #E8EFCF;
+    --secondary-foreground: #534340;
+    --muted: #E8EFCF;
+    --muted-foreground: #BB9981;
+    --accent: #DBA979;
+    --accent-foreground: #534340;
+    --destructive: #D97757;
+    --border: #C5D8A4;
+    --input: #C5D8A4;
+    --ring: #AFD198;
+    --chart-1: #AFD198;
+    --chart-2: #DBA979;
+    --chart-3: #ECCA9C;
+    --chart-4: #BB9981;
+    --chart-5: #534340;
+    --radius: 0.75rem;
+    --sidebar: #E8EFCF;
+    --sidebar-foreground: #534340;
+    --sidebar-primary: #AFD198;
+    --sidebar-primary-foreground: #534340;
+    --sidebar-accent: #ECCA9C;
+    --sidebar-accent-foreground: #534340;
+    --sidebar-border: #C5D8A4;
+    --sidebar-ring: #AFD198;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Nunito', 'Inter Variable', sans-serif;
+  }
+  html {
+    @apply font-sans;
+    scroll-behavior: smooth;
+  }
+}
+
+/* ─── Custom Scrollbar ───────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #E8EFCF;
+}
+::-webkit-scrollbar-thumb {
+  background: #C5D8A4;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #AFD198;
+}
+
+/* ─── Custom Animations ──────────────────────────────── */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes sway {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes grow {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes sprout {
+  0% { transform: scaleY(0); transform-origin: bottom; opacity: 0; }
+  60% { transform: scaleY(1.1); opacity: 1; }
+  100% { transform: scaleY(1); opacity: 1; }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-sway {
+  animation: sway 4s ease-in-out infinite;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+
+.animate-grow {
+  animation: grow 0.4s ease-out forwards;
+}
+
+.animate-sprout {
+  animation: sprout 0.6s ease-out forwards;
+}
+
+/* ─── Stagger animation delays ───────────────────────── */
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+.stagger-5 { animation-delay: 0.5s; }
+
+/* ─── Glass effect for cards ─────────────────────────── */
+.glass {
+  background: rgba(236, 202, 156, 0.5);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(197, 216, 164, 0.4);
+}

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { pool } from '../config/db';
 import { requireAuth } from '../middleware/auth';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';

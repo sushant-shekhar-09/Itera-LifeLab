@@ -37,6 +37,8 @@ export function GrowthAnalysis({ experiment }: GrowthAnalysisProps) {
     if (timeframe === 'month') daysToShow = 30;
     if (timeframe === 'duration') daysToShow = experiment.duration_days || 30;
 
+    const goal = experiment.duration_days || 30; // target for 100%
+
     // Build a lookup map from log_date string → status
     const logMap = new Map<string, string>();
     logs.forEach(l => {
@@ -45,12 +47,37 @@ export function GrowthAnalysis({ experiment }: GrowthAnalysisProps) {
       logMap.set(key, l.status);
     });
 
+    // Determine the chart window's end date:
+    // Use max(today, latestLogDate) so demo auto-advance logs (future dates) are visible
+    const todayStr = toLocalDateStr(new Date());
+    let endDateStr = todayStr;
+    logs.forEach(l => {
+      const logD = new Date(l.log_date);
+      const key = toLocalDateStr(logD);
+      if (key > endDateStr) endDateStr = key;
+    });
+    const endDate = new Date(endDateStr);
+
+    // Calculate the window start from the end date
+    const windowStart = new Date(endDate);
+    windowStart.setDate(windowStart.getDate() - (daysToShow - 1));
+    const windowStartKey = toLocalDateStr(windowStart);
+
+    // Count completed days BEFORE the visible window as baseline offset
+    let baselineCompleted = 0;
+    logs.forEach(l => {
+      const logD = new Date(l.log_date);
+      const key = toLocalDateStr(logD);
+      if (key < windowStartKey && l.status === 'completed') {
+        baselineCompleted++;
+      }
+    });
+
     const data = [];
-    let cumCompleted = 0;
-    let cumTotal = 0;
+    let cumCompleted = baselineCompleted;
 
     for (let i = daysToShow - 1; i >= 0; i--) {
-      const d = new Date();
+      const d = new Date(endDate);
       d.setDate(d.getDate() - i);
       const dateKey = toLocalDateStr(d);
 
@@ -60,32 +87,21 @@ export function GrowthAnalysis({ experiment }: GrowthAnalysisProps) {
 
       const status = logMap.get(dateKey) || 'none';
 
-      // Track cumulative stats for running completion rate
-      if (status !== 'none') {
-        cumTotal++;
-        if (status === 'completed') cumCompleted++;
-      }
-
-      // "growth" value: spike on water, dip on miss, neutral for unlogged
-      // Scale: completed = 100, missed = 10, none = previous value or 50
-      let growth: number;
+      // Cumulative completed count grows only on 'completed' days
       if (status === 'completed') {
-        growth = 100;
-      } else if (status === 'missed') {
-        growth = 10;
-      } else {
-        // No log for this day: show at midpoint (flat line)
-        growth = data.length > 0 ? Math.max(30, (data[data.length - 1].growth ?? 50) * 0.85) : 50;
+        cumCompleted++;
       }
+      // On 'missed' or 'none' days, cumCompleted stays the same (line stays flat)
 
-      // Running completion rate (cumulative over the visible window)
-      const runningRate = cumTotal > 0 ? Math.round((cumCompleted / cumTotal) * 100) : 0;
+      // Growth = cumulative progress toward the goal as a percentage
+      const growth = Math.min(Math.round((cumCompleted / goal) * 100), 100);
 
       data.push({
         date: dateKey,
         label: dayLabel,
         growth,
-        rate: runningRate,
+        completedSoFar: cumCompleted,
+        goal,
         status,
         isStreak: status === 'completed',
         isMiss: status === 'missed'
@@ -159,10 +175,10 @@ export function GrowthAnalysis({ experiment }: GrowthAnalysisProps) {
               contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: 'rgba(0,0,0,0.8)', color: '#fff', fontSize: '12px' }}
               itemStyle={{ color: '#fff' }}
               formatter={(_value: any, name: any, props: any) => {
-                const status = props.payload.status;
+                const { status, completedSoFar, goal } = props.payload;
                 if (name === 'growth') {
-                  const label = status === 'completed' ? '🌱 Watered' : status === 'missed' ? '🥀 Missed' : '— No log';
-                  return [label, 'Status'];
+                  const statusLabel = status === 'completed' ? '🌱 Watered' : status === 'missed' ? '🥀 Missed' : '— No log';
+                  return [`${statusLabel} — ${completedSoFar}/${goal} (${_value}%)`, 'Progress'];
                 }
                 return [_value, name];
               }}

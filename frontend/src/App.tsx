@@ -8,6 +8,7 @@ import Analytics from '@/pages/Analytics';
 import Garden from '@/pages/Garden';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
+import Settings from '@/pages/Settings';
 import type { ReactNode } from 'react';
 
 // Protected route wrapper
@@ -59,6 +60,7 @@ function App() {
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/garden" element={<Garden />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
 
           {/* Catch-all */}

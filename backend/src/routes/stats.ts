@@ -53,11 +53,32 @@ router.get('/overview', requireAuth, async (req: Request, res: Response): Promis
     const completedLogs = completionRate[0].completed_logs || 0;
     const rate = totalLogs > 0 ? Math.round((completedLogs / totalLogs) * 100) : 0;
 
-    // Best streak across all experiments
-    const [bestStreak] = await pool.query<RowDataPacket[]>(
-      'SELECT MAX(longest_streak) as best_streak FROM experiments WHERE user_id = ?',
+    // Best streak percentage — compute for every experiment, pick highest %
+    const [allExps] = await pool.query<RowDataPacket[]>(
+      `SELECT longest_streak, duration_days, start_date
+       FROM experiments WHERE user_id = ?`,
       [userId]
     );
+
+    let bestStreak = 0;
+    let bestStreakPct = 0;
+    for (const row of allExps) {
+      const streak = row.longest_streak || 0;
+      let totalDays: number;
+      if (row.duration_days) {
+        totalDays = row.duration_days;
+      } else {
+        // Ongoing: elapsed days since start
+        const start = new Date(row.start_date);
+        const now = new Date();
+        totalDays = Math.max(1, Math.ceil((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+      }
+      const pct = totalDays > 0 ? Math.min(100, Math.round((streak / totalDays) * 100)) : 0;
+      if (pct > bestStreakPct) {
+        bestStreakPct = pct;
+        bestStreak = streak;
+      }
+    }
 
     // Weekly completion data (last 7 days)
     const [weeklyData] = await pool.query<RowDataPacket[]>(
@@ -76,7 +97,8 @@ router.get('/overview', requireAuth, async (req: Request, res: Response): Promis
         active_experiments: activeExp[0].active,
         completed_experiments: completedExp[0].completed,
         completion_rate: rate,
-        best_streak: bestStreak[0].best_streak || 0,
+        best_streak: bestStreak,
+        best_streak_pct: bestStreakPct,
         today_logs: todayLogs,
         weekly_data: weeklyData,
       },

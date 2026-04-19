@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Droplets, Trophy, Calendar } from 'lucide-react';
+import { Droplets, Calendar } from 'lucide-react';
 import type { StatsOverview, Experiment } from '@/types';
 
 interface TodayContentProps {
@@ -10,7 +9,6 @@ interface TodayContentProps {
 
 export default function TodayContent({ stats, experiments }: TodayContentProps) {
   const todayLogs = stats?.today_logs ?? [];
-  const completedToday = todayLogs.filter(l => l.status === 'completed').length;
   
   // Find active experiments that DO NOT have a log entry for today AND have started
   const now = new Date();
@@ -32,7 +30,7 @@ export default function TodayContent({ stats, experiments }: TodayContentProps) 
   });
 
   return (
-    <Card className="bg-[#788B77] text-white border-white/20 animate-fade-in-up stagger-2 rounded-3xl h-72 flex flex-col hover:shadow-lg transition-shadow">
+    <Card className="bg-[#788B77] text-white border-white/20 animate-fade-in-up stagger-2 rounded-3xl h-72 flex flex-col hover:shadow-lg transition-shadow overflow-hidden">
       <CardHeader className="pb-3 border-b border-white/10 shrink-0">
         <div className="flex justify-between items-start">
           <div>
@@ -49,7 +47,7 @@ export default function TodayContent({ stats, experiments }: TodayContentProps) 
         </div>
       </CardHeader>
       
-      <CardContent className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-3">
+      <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6 space-y-3">
         {pendingExperiments.length > 0 ? (
           <div>
             <h4 className="text-xs font-bold text-white/60 uppercase tracking-wider mb-3">Needs Water</h4>

@@ -52,15 +52,33 @@ router.post('/:id/logs', requireAuth, async (req: Request, res: Response): Promi
     }
 
     // Use local date for log_date default (not UTC)
-    const date = log_date || todayLocal;
+    let date = log_date || todayLocal;
 
-    // Guard: prevent duplicate logging per day for non-demo profiles
+    // Detect demo profile early — needed for auto-advance logic
     const [userRows] = await conn.query<RowDataPacket[]>(
       'SELECT email FROM users WHERE id = ?',
       [userId]
     );
     const isDemoProfile = userRows.length > 0 && userRows[0].email === 'demo@itera.lab';
 
+    // Demo profile: auto-advance to the next calendar day after the last log
+    // This lets the demo user rapidly click through days to show progression
+    if (isDemoProfile && !log_date) {
+      const [latestLogs] = await conn.query<RowDataPacket[]>(
+        'SELECT log_date FROM daily_logs WHERE experiment_id = ? ORDER BY log_date DESC LIMIT 1',
+        [experimentId]
+      );
+
+      if (latestLogs.length > 0) {
+        // Advance to the day after the most recent log
+        const lastDate = new Date(latestLogs[0].log_date);
+        lastDate.setDate(lastDate.getDate() + 1);
+        date = `${lastDate.getFullYear()}-${String(lastDate.getMonth()+1).padStart(2,'0')}-${String(lastDate.getDate()).padStart(2,'0')}`;
+      }
+      // If no logs exist, use todayLocal (already set above)
+    }
+
+    // Guard: prevent duplicate logging per day for non-demo profiles
     if (!isDemoProfile) {
       const [existingLogs] = await conn.query<RowDataPacket[]>(
         'SELECT id FROM daily_logs WHERE experiment_id = ? AND log_date = ?',

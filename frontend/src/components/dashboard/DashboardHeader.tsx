@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import {
   Popover,
@@ -36,7 +36,12 @@ interface DashboardHeaderProps {
 export default function DashboardHeader({ experiments = [], stats = null, currentExperiment = null }: DashboardHeaderProps) {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const isDashboard = location.pathname.includes('/dashboard');
+
+  // Derive page label from current route
+  const getPageLabel = () => {
+    const path = location.pathname.split('/').filter(Boolean)[0] || 'dashboard';
+    return path.charAt(0).toUpperCase() + path.slice(1);
+  };
   
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -162,28 +167,17 @@ export default function DashboardHeader({ experiments = [], stats = null, curren
 
   return (
     <header className="flex w-full items-center justify-between mb-8 z-20 relative">
-      {/* Left: View Tabs / Path Breadcrumbs */}
+      {/* Left: Page Label + Current Experiment */}
       <div className="flex items-center gap-3">
-        {isDashboard ? (
-          <div className="flex items-center gap-2 bg-white/40 p-1.5 rounded-full backdrop-blur-sm border border-white/60 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.05)]">
-            <Button asChild variant="default" className="bg-white text-earth-dark shadow-sm hover:bg-white/90 cursor-default rounded-full px-6 h-10 font-medium transition-all">
-              <Link to="/dashboard">Dashboard</Link>
-            </Button>
-            <Button asChild variant="ghost" className="text-earth-mid hover:text-earth-dark cursor-pointer rounded-full px-6 h-10 font-medium transition-all">
-              <Link to="/analytics">Analytics</Link>
-            </Button>
+        <div className="flex items-center gap-2 bg-white/40 p-1.5 rounded-full backdrop-blur-sm border border-white/60 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.05)]">
+          <div className="bg-white text-earth-dark shadow-sm rounded-full px-6 h-10 font-medium flex items-center">
+            {getPageLabel()}
           </div>
-        ) : (
-          <div className="flex items-center gap-3">
-             <div className="bg-white/60 backdrop-blur-md px-6 py-2.5 rounded-full border border-white/80 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.05)] font-medium text-earth-dark">
-                Analytics
-             </div>
-             {currentExperiment && (
-               <div className="bg-white/60 backdrop-blur-md px-5 py-2.5 rounded-full border border-white/80 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.05)] font-bold text-earth-dark flex items-center gap-2.5 transition-all">
-                  <div className="w-2.5 h-2.5 rounded-full bg-garden-green shadow-[0_0_8px_rgba(175,209,152,0.8)]"></div>
-                  {currentExperiment.title}
-               </div>
-             )}
+        </div>
+        {location.pathname.includes('/analytics') && currentExperiment && (
+          <div className="bg-white/60 backdrop-blur-md px-5 py-2.5 rounded-full border border-white/80 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.05)] font-bold text-earth-dark flex items-center gap-2.5 transition-all">
+            <div className="w-2.5 h-2.5 rounded-full bg-garden-green shadow-[0_0_8px_rgba(175,209,152,0.8)]"></div>
+            {currentExperiment.title}
           </div>
         )}
       </div>
@@ -401,7 +395,7 @@ export default function DashboardHeader({ experiments = [], stats = null, curren
             <h3 className="text-2xl font-bold text-earth-dark leading-snug">{user?.username || 'Gardener'}</h3>
             <p className="text-sm text-earth-mid font-medium mb-8">{user?.email || 'user@itera.lab'}</p>
             <div className="w-full space-y-3">
-              <Button variant="ghost" className="w-full justify-start text-earth-mid hover:text-earth-dark hover:bg-garden-sage/30 rounded-xl transition-colors h-12 text-base">Settings</Button>
+              <Button variant="ghost" onClick={() => { setIsProfileOpen(false); window.location.href = '/settings'; }} className="w-full justify-start text-earth-mid hover:text-earth-dark hover:bg-garden-sage/30 rounded-xl transition-colors h-12 text-base">Settings</Button>
               <Button variant="ghost" className="w-full justify-start text-earth-mid hover:text-earth-dark hover:bg-garden-sage/30 rounded-xl transition-colors h-12 text-base">Contact</Button>
               {user?.email === 'demo@itera.lab' && (
                 <Button 

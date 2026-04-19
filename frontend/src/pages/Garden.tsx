@@ -1,12 +1,30 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { experimentsAPI, logsAPI } from '@/services/api';
 import type { Experiment } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Flame, Calendar, CheckCircle, XCircle, Sprout, TreePine, Trash2, AlertTriangle, X } from 'lucide-react';
+import { Flame, Calendar, CheckCircle, XCircle, Sprout, TreePine, Trash2, AlertTriangle, X, Clock, Hourglass } from 'lucide-react';
 import CreateExperimentDialog from '@/components/experiments/CreateExperimentDialog';
 import { toast } from 'sonner';
+
+function getTodayStr(): string {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+}
+
+function getDaysUntil(dateStr: string): number {
+  const today = new Date(getTodayStr());
+  const target = new Date(dateStr);
+  const diff = target.getTime() - today.getTime();
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
+
+function isUpcoming(exp: Experiment): boolean {
+  const sd = new Date(exp.start_date);
+  const startStr = `${sd.getFullYear()}-${String(sd.getMonth() + 1).padStart(2, '0')}-${String(sd.getDate()).padStart(2, '0')}`;
+  return startStr > getTodayStr();
+}
 
 function getPlantEmoji(streak: number): string {
   if (streak >= 30) return '🌳';
@@ -30,20 +48,38 @@ function getStatusColor(status: string): string {
 export default function Garden() {
   const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<string>('all');
+  const [filter, setFilter] = useState<string>('active');
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // For 'upcoming', we fetch 'active' from the backend and filter client-side
+  const backendFilter = useMemo(() => {
+    if (filter === 'upcoming') return 'active';
+    if (filter === 'all') return undefined;
+    return filter;
+  }, [filter]);
+
   const fetchExperiments = useCallback(async () => {
     try {
-      const res = await experimentsAPI.list(filter === 'all' ? undefined : filter);
+      const res = await experimentsAPI.list(backendFilter);
       setExperiments(res.data.experiments);
     } catch {
       toast.error('Failed to load garden');
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [backendFilter]);
+
+  // Client-side filtering: split active vs upcoming
+  const displayedExperiments = useMemo(() => {
+    if (filter === 'upcoming') {
+      return experiments.filter(exp => exp.status === 'active' && isUpcoming(exp));
+    }
+    if (filter === 'active') {
+      return experiments.filter(exp => !isUpcoming(exp));
+    }
+    return experiments;
+  }, [experiments, filter]);
 
   useEffect(() => {
     fetchExperiments();
@@ -55,9 +91,14 @@ export default function Garden() {
     duration_days?: number;
     start_date: string;
   }) => {
-    await experimentsAPI.create(data);
-    toast.success('🌱 New seed planted!');
-    fetchExperiments();
+    try {
+      await experimentsAPI.create(data);
+      toast.success('🌱 New seed planted!');
+      fetchExperiments();
+    } catch (err: any) {
+      const msg = err.response?.data?.error || 'Failed to create seed';
+      toast.error(msg);
+    }
   };
 
   const handleLog = async (expId: number, status: 'completed' | 'missed') => {
@@ -83,7 +124,9 @@ export default function Garden() {
     try {
       const res = await experimentsAPI.delete(deleteTarget.id);
       const action = (res.data as any).action;
-      if (action === 'abandoned') {
+      if (action === 'completed') {
+        toast.success('✅ Completed seed archived', { description: `"${deleteTarget.title}" remains in your garden as completed.` });
+      } else if (action === 'abandoned') {
         toast.success('🍂 Seed marked as abandoned', { description: `"${deleteTarget.title}" has been archived with its history preserved.` });
       } else {
         toast.success('🗑️ Seed permanently removed', { description: `"${deleteTarget.title}" has been deleted from your garden.` });
@@ -97,7 +140,11 @@ export default function Garden() {
     }
   };
 
-  const filters = ['all', 'active', 'completed', 'paused', 'abandoned'];
+  const filters = ['active', 'upcoming', 'completed', 'abandoned', 'all'];
+
+  const filterIcons: Record<string, React.ReactNode> = {
+    upcoming: <Clock className="h-3.5 w-3.5" />,
+  };
 
   if (loading) {
     return (
@@ -133,35 +180,56 @@ export default function Garden() {
             size="sm"
             onClick={() => setFilter(f)}
             className={filter === f
-              ? 'bg-garden-green text-earth-dark'
+              ? f === 'upcoming'
+                ? 'bg-amber-500 text-white'
+                : 'bg-garden-green text-earth-dark'
               : 'border-earth-soft text-earth-mid hover:bg-garden-sage/40'
             }
           >
-            {f.charAt(0).toUpperCase() + f.slice(1)}
+            <span className="flex items-center gap-1.5">
+              {filterIcons[f]}
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </span>
           </Button>
         ))}
       </div>
 
       {/* Grid */}
-      {experiments.length === 0 ? (
+      {displayedExperiments.length === 0 ? (
         <div className="text-center py-16 animate-fade-in-up">
-          <h2 className="text-xl font-bold text-earth-dark mb-2">Your garden awaits</h2>
-          <p className="text-earth-mid">Plant your first seed to begin your journey!</p>
+          {filter === 'upcoming' ? (
+            <>
+              <p className="text-4xl mb-3">⏳</p>
+              <h2 className="text-xl font-bold text-earth-dark mb-2">No upcoming seeds</h2>
+              <p className="text-earth-mid">All your seeds are already active! Plant a new seed with a future start date to see it here.</p>
+            </>
+          ) : (
+            <>
+              <h2 className="text-xl font-bold text-earth-dark mb-2">Your garden awaits</h2>
+              <p className="text-earth-mid">Plant your first seed to begin your journey!</p>
+            </>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {experiments.map((exp, idx) => (
+          {displayedExperiments.map((exp, idx) => (
             <Card
               key={exp.id}
               className={`bg-garden-parchment/40 border-earth-soft/30 hover:shadow-lg transition-all hover:-translate-y-1 animate-fade-in-up stagger-${Math.min(idx + 1, 5)}`}
             >
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3">
-                  <span className="text-4xl">{getPlantEmoji(exp.current_streak)}</span>
+                  <span className="text-4xl">{isUpcoming(exp) ? '⏳' : getPlantEmoji(exp.current_streak)}</span>
                   <div className="flex items-center gap-2">
-                    <Badge className={`text-xs ${getStatusColor(exp.status)}`}>
-                      {exp.status}
-                    </Badge>
+                    {isUpcoming(exp) ? (
+                      <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-200">
+                        upcoming
+                      </Badge>
+                    ) : (
+                      <Badge className={`text-xs ${getStatusColor(exp.status)}`}>
+                        {exp.status}
+                      </Badge>
+                    )}
                     <button
                       onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: exp.id, title: exp.title }); }}
                       className="h-7 w-7 rounded-full flex items-center justify-center text-earth-mid hover:text-red-500 hover:bg-red-50 transition-colors"
@@ -193,17 +261,21 @@ export default function Garden() {
                 </div>
 
                 {exp.status === 'active' && (() => {
-                  const _n = new Date();
-                  const todayStr = `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`;
-                  const sd = new Date(exp.start_date);
-                  const startStr = `${sd.getFullYear()}-${String(sd.getMonth()+1).padStart(2,'0')}-${String(sd.getDate()).padStart(2,'0')}`;
-                  const hasStarted = startStr <= todayStr;
+                  const upcoming = isUpcoming(exp);
 
-                  if (!hasStarted) {
+                  if (upcoming) {
+                    const daysLeft = getDaysUntil(exp.start_date);
                     return (
-                      <div className="flex items-center gap-2 text-xs text-earth-mid bg-earth-soft/20 rounded-xl py-2 px-3 border border-earth-soft/30">
-                        <Calendar className="h-3 w-3" />
-                        <span>Starts on {new Date(exp.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      <div className="flex items-center gap-2 text-xs bg-amber-50 text-amber-700 rounded-xl py-2.5 px-3 border border-amber-200/60">
+                        <Hourglass className="h-3.5 w-3.5 text-amber-500 animate-pulse" />
+                        <div className="flex flex-col">
+                          <span className="font-semibold">
+                            Starts in {daysLeft} day{daysLeft !== 1 ? 's' : ''}
+                          </span>
+                          <span className="text-amber-600/70 text-[10px]">
+                            {new Date(exp.start_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        </div>
                       </div>
                     );
                   }

@@ -18,10 +18,10 @@ export default function Sidebar() {
 
   return (
     <aside className="w-[80px] h-screen sticky top-0 left-0 bg-transparent flex flex-col items-center py-8 z-40 border-r border-earth-soft/20 shrink-0">
-      {/* Logo */}
-      <Link to="/" className="mb-12 transition-transform hover:scale-[1.1] scale-100" title="Home">
+      {/* Logo — opens landing page in a new tab */}
+      <a href="/?landing=1" target="_blank" rel="noopener noreferrer" className="mb-12 transition-transform hover:scale-[1.1] scale-100" title="Home">
         <Logo className="w-[60px] h-auto" />
-      </Link>
+      </a>
 
       {/* Nav Icons */}
       <div className="flex-1 flex flex-col gap-6 w-full items-center">

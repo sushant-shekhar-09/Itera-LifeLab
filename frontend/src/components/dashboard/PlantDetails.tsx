@@ -38,9 +38,9 @@ export function PlantDetails({ experiment }: PlantDetailsProps) {
     {
       icon: Clock,
       label: 'Avg Time Invested',
-      value: '20 mins',
-      subtext: 'per day (Est.)',
-      iconColor: 'text-orange-500'
+      value: 'N/A',
+      subtext: 'Coming soon',
+      iconColor: 'text-orange-300'
     },
     {
       icon: Zap,

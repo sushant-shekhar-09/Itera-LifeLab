@@ -126,6 +126,7 @@ export default function CreateExperimentDialog({ onSubmit }: CreateExperimentDia
                 type="date"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
                 className="bg-white/60 border-earth-soft focus:border-garden-green"
                 required
               />

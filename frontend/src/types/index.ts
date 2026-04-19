@@ -7,6 +7,7 @@ export interface User {
   first_name?: string;
   last_name?: string;
   login_count?: number;
+  auto_miss?: number;
   created_at: string;
 }
 
@@ -66,6 +67,7 @@ export interface StatsOverview {
   completed_experiments: number;
   completion_rate: number;
   best_streak: number;
+  best_streak_pct: number;
   today_logs: (DailyLog & { experiment_title: string })[];
   weekly_data: { log_date: string; status: string; count: number }[];
 }

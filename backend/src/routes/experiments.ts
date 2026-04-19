@@ -46,6 +46,14 @@ router.post('/', requireAuth, async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    // Reject past start dates
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    if (start_date < todayStr) {
+      res.status(400).json({ error: 'Start date cannot be in the past' });
+      return;
+    }
+
     // Calculate end_date if duration is provided
     let endDate = null;
     if (duration_days) {
@@ -212,6 +220,13 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response): Promise<
       return;
     }
 
+    // Fetch current status
+    const [expRows] = await conn.query<RowDataPacket[]>(
+      'SELECT status FROM experiments WHERE id = ?',
+      [experimentId]
+    );
+    const currentStatus = expRows[0]?.status;
+
     // Check if any daily logs exist (i.e., was it ever watered?)
     const [logs] = await conn.query<RowDataPacket[]>(
       'SELECT COUNT(*) as log_count FROM daily_logs WHERE experiment_id = ?',
@@ -222,13 +237,16 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response): Promise<
     await conn.beginTransaction();
 
     if (hasLogs) {
-      // Soft delete: mark as abandoned
-      await conn.query(
-        "UPDATE experiments SET status = 'abandoned' WHERE id = ?",
-        [experimentId]
-      );
+      // Soft delete: preserve completed status, otherwise mark as abandoned
+      if (currentStatus !== 'completed') {
+        await conn.query(
+          "UPDATE experiments SET status = 'abandoned' WHERE id = ?",
+          [experimentId]
+        );
+      }
       await conn.commit();
-      res.json({ message: 'Seed marked as abandoned', action: 'abandoned' });
+      const action = currentStatus === 'completed' ? 'completed' : 'abandoned';
+      res.json({ message: currentStatus === 'completed' ? 'Completed seed archived' : 'Seed marked as abandoned', action });
     } else {
       // Hard delete: no logs, remove everything
       await conn.query('DELETE FROM notifications WHERE daily_log_id IN (SELECT id FROM daily_logs WHERE experiment_id = ?)', [experimentId]);
@@ -241,6 +259,124 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response): Promise<
   } catch (error) {
     await conn.rollback();
     console.error('Delete experiment error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    conn.release();
+  }
+});
+
+// ─── Auto-Miss Processing ────────────────────────────────
+// Called by the frontend on dashboard load. For each active experiment,
+// backfill any unlogged days (between start_date and yesterday) as 'missed'.
+router.post('/auto-miss', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const conn = await pool.getConnection();
+  try {
+    const userId = req.session.userId;
+
+    // Check if user has auto_miss enabled
+    const [userRows] = await conn.query<RowDataPacket[]>(
+      'SELECT auto_miss FROM users WHERE id = ?',
+      [userId]
+    );
+    if (userRows.length === 0 || !userRows[0].auto_miss) {
+      res.json({ message: 'Auto-miss disabled', filled: 0 });
+      conn.release();
+      return;
+    }
+
+    // Get all active experiments for this user
+    const [experiments] = await conn.query<RowDataPacket[]>(
+      "SELECT id, start_date, duration_days FROM experiments WHERE user_id = ? AND status = 'active'",
+      [userId]
+    );
+
+    if (experiments.length === 0) {
+      res.json({ message: 'No active experiments', filled: 0 });
+      conn.release();
+      return;
+    }
+
+    const now = new Date();
+    const yesterdayDate = new Date(now);
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterdayStr = `${yesterdayDate.getFullYear()}-${String(yesterdayDate.getMonth()+1).padStart(2,'0')}-${String(yesterdayDate.getDate()).padStart(2,'0')}`;
+
+    let totalFilled = 0;
+
+    await conn.beginTransaction();
+
+    for (const exp of experiments) {
+      const sd = new Date(exp.start_date);
+      const startStr = `${sd.getFullYear()}-${String(sd.getMonth()+1).padStart(2,'0')}-${String(sd.getDate()).padStart(2,'0')}`;
+
+      // Get all existing log dates for this experiment
+      const [existingLogs] = await conn.query<RowDataPacket[]>(
+        'SELECT log_date FROM daily_logs WHERE experiment_id = ?',
+        [exp.id]
+      );
+      const loggedDates = new Set(
+        existingLogs.map((l: RowDataPacket) => {
+          const d = new Date(l.log_date);
+          return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        })
+      );
+
+      // Walk each day from start_date to yesterday, insert missed for gaps
+      const cursor = new Date(startStr);
+      const end = new Date(yesterdayStr);
+
+      while (cursor <= end) {
+        const curStr = `${cursor.getFullYear()}-${String(cursor.getMonth()+1).padStart(2,'0')}-${String(cursor.getDate()).padStart(2,'0')}`;
+
+        if (!loggedDates.has(curStr)) {
+          // Insert missed log (ignore if somehow a duplicate would occur)
+          await conn.query(
+            'INSERT IGNORE INTO daily_logs (experiment_id, log_date, status) VALUES (?, ?, ?)',
+            [exp.id, curStr, 'missed']
+          );
+          totalFilled++;
+        }
+        cursor.setDate(cursor.getDate() + 1);
+      }
+
+      // Recalculate streaks from actual log data
+      const [allLogs] = await conn.query<RowDataPacket[]>(
+        'SELECT log_date, status FROM daily_logs WHERE experiment_id = ? ORDER BY log_date DESC',
+        [exp.id]
+      );
+
+      let currentStreak = 0;
+      for (const log of allLogs) {
+        if (log.status === 'completed') currentStreak++;
+        else break;
+      }
+
+      // Longest streak: walk forward through all logs sorted ASC
+      const [allLogsAsc] = await conn.query<RowDataPacket[]>(
+        'SELECT status FROM daily_logs WHERE experiment_id = ? ORDER BY log_date ASC',
+        [exp.id]
+      );
+      let longestStreak = 0, runStreak = 0;
+      for (const log of allLogsAsc) {
+        if (log.status === 'completed') {
+          runStreak++;
+          if (runStreak > longestStreak) longestStreak = runStreak;
+        } else {
+          runStreak = 0;
+        }
+      }
+
+      await conn.query(
+        'UPDATE experiments SET current_streak = ?, longest_streak = ? WHERE id = ?',
+        [currentStreak, longestStreak, exp.id]
+      );
+    }
+
+    await conn.commit();
+    res.json({ message: 'Auto-miss processed', filled: totalFilled });
+  } catch (error) {
+    await conn.rollback();
+    console.error('Auto-miss error:', error);
     res.status(500).json({ error: 'Internal server error' });
   } finally {
     conn.release();

@@ -63,7 +63,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
     }
 
     const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT id, username, email, password_hash, avatar_url, first_name, last_name, login_count FROM users WHERE email = ?',
+      'SELECT id, username, email, password_hash, avatar_url, first_name, last_name, login_count, auto_miss FROM users WHERE email = ?',
       [email]
     );
 
@@ -95,7 +95,8 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
          avatar_url: user.avatar_url,
          first_name: user.first_name,
          last_name: user.last_name,
-         login_count: user.login_count + 1 
+         login_count: user.login_count + 1,
+         auto_miss: user.auto_miss 
       },
     });
   } catch (error) {
@@ -120,7 +121,7 @@ router.post('/logout', (req: Request, res: Response): void => {
 router.get('/me', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT id, username, email, avatar_url, first_name, last_name, login_count, created_at FROM users WHERE id = ?',
+      'SELECT id, username, email, avatar_url, first_name, last_name, login_count, auto_miss, created_at FROM users WHERE id = ?',
       [req.session.userId]
     );
 
@@ -132,6 +133,67 @@ router.get('/me', requireAuth, async (req: Request, res: Response): Promise<void
     res.json({ user: rows[0] });
   } catch (error) {
     console.error('Get user error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+// ─── Update Profile ──────────────────────────────────────
+router.put('/profile', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.session.userId;
+    const { first_name, last_name, username } = req.body;
+
+    // If username is being changed, check uniqueness
+    if (username) {
+      const [existing] = await pool.query<RowDataPacket[]>(
+        'SELECT id FROM users WHERE username = ? AND id != ?',
+        [username, userId]
+      );
+      if (existing.length > 0) {
+        res.status(409).json({ error: 'Username is already taken' });
+        return;
+      }
+    }
+
+    await pool.query(
+      'UPDATE users SET first_name = ?, last_name = ?, username = COALESCE(?, username), updated_at = NOW() WHERE id = ?',
+      [first_name ?? null, last_name ?? null, username ?? null, userId]
+    );
+
+    // Return updated user
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT id, username, email, avatar_url, first_name, last_name, login_count, auto_miss, created_at FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (username) {
+      req.session.username = username;
+    }
+
+    res.json({ message: 'Profile updated', user: rows[0] });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── Toggle Settings ─────────────────────────────────────
+router.put('/settings', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.session.userId;
+    const { auto_miss } = req.body;
+
+    if (typeof auto_miss !== 'undefined') {
+      await pool.query('UPDATE users SET auto_miss = ? WHERE id = ?', [auto_miss ? 1 : 0, userId]);
+    }
+
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT id, username, email, avatar_url, first_name, last_name, login_count, auto_miss, created_at FROM users WHERE id = ?',
+      [userId]
+    );
+
+    res.json({ message: 'Settings updated', user: rows[0] });
+  } catch (error) {
+    console.error('Update settings error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

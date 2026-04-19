@@ -60,7 +60,7 @@ export default function Analytics() {
 
   if (loading) {
     return (
-      <div className="h-[100dvh] w-full max-w-[1600px] mx-auto pt-6 px-4 sm:px-8 flex flex-col overflow-hidden">
+      <div className="h-[100dvh] w-full max-w-[1600px] mx-auto pt-2 px-4 sm:px-8 flex flex-col overflow-hidden">
         <DashboardHeader />
         <div className="flex-1 flex items-center justify-center">
           <div className="animate-pulse flex flex-col items-center">
@@ -75,7 +75,7 @@ export default function Analytics() {
   const currentExperiment = experiments.length > 0 ? experiments[currentIndex] : null;
 
   return (
-    <div className="h-[100dvh] w-full max-w-[1600px] mx-auto pt-6 px-4 sm:px-8 flex flex-col overflow-hidden pb-6">
+    <div className="h-[100dvh] w-full max-w-[1600px] mx-auto pt-2 px-4 sm:px-8 flex flex-col overflow-hidden pb-6">
       
       {/* Header with dynamic path pill */}
       <div className="shrink-0 z-20">

@@ -18,13 +18,6 @@ export default function Dashboard() {
   const [stats, setStats] = useState<StatsOverview | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Derive real streak
-  // The backend stats currently tracks best_streak natively. If we needed a "Current Daily App Visits Streak", 
-  // we would implement it tracking user logins, but for now we map it to max experiment streak or log frequency.
-  const maxActiveStreak = experiments.length > 0 
-    ? Math.max(...experiments.map(e => e.current_streak)) 
-    : 0;
-
   const fetchData = useCallback(async () => {
     try {
       const [expRes, statsRes] = await Promise.all([
@@ -41,7 +34,8 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    // Trigger auto-miss backfill first (silent, no-op if disabled), then fetch data
+    experimentsAPI.autoMiss().catch(() => {}).finally(() => fetchData());
   }, [fetchData]);
 
   const handleLogEntry = async (experimentId: number, status: 'completed' | 'missed') => {
@@ -63,7 +57,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="h-full w-full max-w-[1600px] mx-auto pt-6 px-4 sm:px-8 flex flex-col min-h-screen">
+      <div className="h-full w-full max-w-[1600px] mx-auto pt-2 px-4 sm:px-8 flex flex-col min-h-screen">
         <DashboardHeader experiments={experiments} stats={stats} />
         <div className="flex-1 flex items-center justify-center">
           <div className="animate-pulse flex flex-col items-center">
@@ -140,12 +134,12 @@ export default function Dashboard() {
 
           {/* Bottom Area: 2 Square Cards */}
           <div className="flex gap-6 h-[160px] shrink-0 z-10">
-            {/* Real Streak Card */}
+            {/* Longest Streak Card — uses stats API (all experiments) */}
             <div className="flex-1 bg-white/60 backdrop-blur-sm border border-white rounded-[2rem] p-5 shadow-sm flex flex-col justify-center items-center text-center hover:bg-white/80 transition-colors cursor-default animate-fade-in-up stagger-4">
-               <span className="text-4xl font-black text-garden-green flex items-center gap-1">
-                 {maxActiveStreak}
-               </span>
-               <span className="text-xs font-bold text-earth-mid mt-2 uppercase tracking-wide">Longest Streak</span>
+              <span className="text-4xl font-black text-garden-green">
+                {stats?.best_streak_pct ?? 0}%
+              </span>
+              <span className="text-xs font-bold text-earth-mid mt-2 uppercase tracking-wide">Longest Streak ( in % )</span>
             </div>
 
             {/* My Garden Link Card */}

@@ -2,7 +2,7 @@ import axios from 'axios';
 import type { Experiment, LogResponse, Notification, StatsOverview, User } from '@/types';
 
 const api = axios.create({
-  baseURL: 'http://localhost:3001/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001/api',
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });
@@ -18,6 +18,12 @@ export const authAPI = {
   logout: () => api.post('/auth/logout'),
 
   getMe: () => api.get<{ user: User }>('/auth/me'),
+
+  updateProfile: (data: { first_name?: string; last_name?: string; username?: string }) =>
+    api.put<{ message: string; user: User }>('/auth/profile', data),
+
+  updateSettings: (data: { auto_miss?: boolean }) =>
+    api.put<{ message: string; user: User }>('/auth/settings', data),
 };
 
 // ─── Experiments ─────────────────────────────────────────
@@ -44,6 +50,9 @@ export const experimentsAPI = {
 
   resetAll: () =>
     api.delete('/experiments/reset'),
+
+  autoMiss: () =>
+    api.post<{ message: string; filled: number }>('/experiments/auto-miss'),
 };
 
 // ─── Daily Logs ──────────────────────────────────────────

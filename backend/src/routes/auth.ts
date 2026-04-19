@@ -107,7 +107,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
 
 // ─── Logout ──────────────────────────────────────────────
 router.post('/logout', (req: Request, res: Response): void => {
-  req.session.destroy((err) => {
+  req.session.destroy((err: Error | null) => {
     if (err) {
       res.status(500).json({ error: 'Failed to logout' });
       return;
